@@ -18,9 +18,9 @@ def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, b
     # Draw y_0 from N(0.5 * (I - M^T M) e + M * x_c , sigma_0^2 * I)
     y_t = torch.normal(0.5 * (torch.eye(x_c.shape[0]) - M_T(M(e))) + M(x_c), sigma_0 ** 2 * torch.eye(x_c.shape[0]))
 
-    sigma_t = sigma_0
+    sigma = sigma_0
 
-    while sigma_t <= sigma_L:
+    while sigma <= sigma_L:
 
         # Step size
         h_t = (h_0 * t) / (1 + h_0 * (t - 1))
@@ -29,17 +29,18 @@ def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, b
         #  f(y_t) = x^ (y) - y
         # Denoised is the output of the denoiser - the original image
 
-        f = denoiser(y_t) - y_t
+        f = denoiser(y_t)
 
         # d_t = (I - M M^T) f(y_t) + M (x_c - M^T y_t) 
-        d_t = torch.eye(x_c.shape[0]) - M(M_T(f)) + M(x_c - M_T(y_t))
+        d_t = torch.eye(x_c.shape[0]) - M(M_T(f[0])) + M(x_c - M_T(y_t[0]))
 
         # sigma_t = sqrt(abs(d_t)^2/N)
         # N is the number of pixels in the image
-        sigma_t = torch.sqrt(torch.abs(d_t)**2 / x_c.shape[0] * x_c.shape[1])
+        N = x_c.shape[0] * x_c.shape[1]
+        sigma = torch.norm(f)/np.sqrt(N)
 
         # gamma_t = sqrt((1 beta * h_t)^2 - (1 - h_t)^2) * sigma_t^2)
-        gamma_t = torch.sqrt((1 - beta * h_t) ** 2 - (1 - h_t) ** 2) * sigma_t ** 2
+        gamma_t = torch.sqrt((1 - beta * h_t) ** 2 - (1 - h_t) ** 2) * sigma ** 2
 
         # Draw z_t from N(0, I)
         z_t = torch.normal(0, 1)
