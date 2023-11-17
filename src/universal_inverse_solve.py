@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-def universal_inverse_solver(M, M_T, x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, beta=0.01):
+def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, beta=0.01):
 
     # M and M_T depend on the task we are performing, so input them as arguments depending on the task (ex infill)
 
@@ -11,8 +11,12 @@ def universal_inverse_solver(M, M_T, x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0
     # e is a matrix of 1's the shape of x_c
     e = np.ones(x_c.shape)
 
+    # For synthesis for now, M and M_T are just 0
+    M = lambda x: torch.zeros_like(x)
+    M_T = lambda x: torch.zeros_like(x)
+
     # Draw y_0 from N(0.5 * (I - M^T M) e + M * x_c , sigma_0^2 * I)
-    y_t = torch.distributions.normal.Normal(0.5 * (torch.eye(x_c.shape[0]) - torch.matmul(M_T, M)) * e + torch.matmul(M, x_c), sigma_0 ** 2 * torch.eye(x_c.shape[0])).sample()
+    y_t = torch.distributions.normal.Normal(0.5 * (torch.eye(x_c.shape[0]) - M_T(M(e))) + M(x_c), sigma_0 ** 2 * torch.eye(x_c.shape[0])).sample()
 
     sigma_t = sigma_0
 
@@ -28,7 +32,7 @@ def universal_inverse_solver(M, M_T, x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0
         f = denoiser(y_t) - y_t
 
         # d_t = (I - M M^T) f(y_t) + M (x_c - M^T y_t)
-        d_t = (torch.eye(x_c.shape[0]) - torch.matmul(M, M_T)) * f + torch.matmul(M, x_c - torch.matmul(M_T, y_t))
+        d_t = torch.eye(x_c.shape[0]) - M(M_T(f)) + M(x_c - M_T(y_t))
 
         # sigma_t = sqrt(abs(d_t)^2/N)
         # N is the number of pixels in the image
