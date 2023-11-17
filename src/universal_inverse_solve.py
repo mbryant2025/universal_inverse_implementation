@@ -9,14 +9,14 @@ def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, b
     t = 1
 
     # e is a matrix of 1's the shape of x_c
-    e = np.ones(x_c.shape)
+    e = torch.ones(x_c.shape)
 
     # For synthesis for now, M and M_T are just 0
     M = lambda x: torch.zeros_like(x)
     M_T = lambda x: torch.zeros_like(x)
 
     # Draw y_0 from N(0.5 * (I - M^T M) e + M * x_c , sigma_0^2 * I)
-    y_t = torch.distributions.normal.Normal(0.5 * (torch.eye(x_c.shape[0]) - M_T(M(e))) + M(x_c), sigma_0 ** 2 * torch.eye(x_c.shape[0])).sample()
+    y_t = torch.normal(0.5 * (torch.eye(x_c.shape[0]) - M_T(M(e))) + M(x_c), sigma_0 ** 2 * torch.eye(x_c.shape[0]))
 
     sigma_t = sigma_0
 
@@ -31,7 +31,7 @@ def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, b
 
         f = denoiser(y_t) - y_t
 
-        # d_t = (I - M M^T) f(y_t) + M (x_c - M^T y_t)
+        # d_t = (I - M M^T) f(y_t) + M (x_c - M^T y_t) 
         d_t = torch.eye(x_c.shape[0]) - M(M_T(f)) + M(x_c - M_T(y_t))
 
         # sigma_t = sqrt(abs(d_t)^2/N)
@@ -42,7 +42,7 @@ def universal_inverse_solver(x_c, denoiser, sigma_0=1, sigma_L=0.01, h_0=0.01, b
         gamma_t = torch.sqrt((1 - beta * h_t) ** 2 - (1 - h_t) ** 2) * sigma_t ** 2
 
         # Draw z_t from N(0, I)
-        z_t = torch.distributions.normal.Normal(0, 1).sample()
+        z_t = torch.normal(0, 1)
 
         # y_t+1 = y_t + h_t * d_t + gamma_t * z_t
         y_t = y_t + h_t * d_t + gamma_t * z_t
